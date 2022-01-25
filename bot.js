@@ -78,6 +78,9 @@ process.on('uncaughtException', function (err) {
 });
 
 async function gotMessage(msg) {
+  if (msg.member.user.bot) {
+    return;
+  }
   var msg_lower = msg.content.toLowerCase();
   fs.readFile('config.json', 'utf8', 
     function readFileCallback(err, data) {
@@ -138,6 +141,7 @@ async function gotMessage(msg) {
             if (!config.setupChannels.includes(setup_channel_id)) {
               config.setupChannels.push(setup_channel_id); //add some data
               json = JSON.stringify(config); //convert it back to json
+              empty = {users: []};
               empty_j = JSON.stringify(empty); //convert it back to json
               fs.writeFile('config.json', json, 
                 function(err) {
@@ -170,285 +174,6 @@ async function gotMessage(msg) {
       msg.react('❌'); 
       msg.reply('Sorry, you do not have adequate permissions to issue that command.')
     }
-  } else if (config.setupChannels.includes(msg.channel.id.toString())) {
-    // THIS IS WHERE ALL THE COMMANDS GO
-    if (msg_lower.indexOf('%newamby ') !== -1) {
-      var user_data = msg.content.replace('%newamby ','');
-      var filedir = './users/' + msg.guild.id.toString() + '/users.json';
-      var params = user_data.split(',');
-
-      for (let i = 0; i < params.length; i++){
-        params[i] = params[i].replace(/^\s+/g, '');
-        params[i] = params[i].replace(/\s+$/g, '');
-      }
-
-      if (params.length < 6) {
-        msg.reply("That's not enough parameters! Please provide (comma-separated) the Ambassador Name, Class (Write N/A if unavailable), Discord User ID (You can @ their username for this too), Current Gold, Total XP, and a link to their photo!\nE.g. `Ghassan, Shawarma Sandwich, @explosivetortellini#6969, 69, 420, https://bit.ly/3tYOfzG`");
-        return;
-      }
-
-      if (params[2].startsWith('<@!') && params[2].toString().endsWith('>')){
-        params[2] = params[2].replace('<@!','');
-        params[2] = params[2].replace('>','');
-      }
-      if (params[2].startsWith('<@') && params[2].toString().endsWith('>')){
-        params[2] = params[2].replace('<@','');
-        params[2] = params[2].replace('>','');
-      }
-
-      var repl = `New Ambassador: name: ${params[0]}, class: ${params[1]}, id: ${parseInt(params[2])}, gold: ${parseInt(params[3])}, xp: ${parseInt(params[4])}, icon: ${params[5]}`;
-      assign_amby(user_info, params[0], params[1], parseInt(params[2]), parseInt(params[3]), parseInt(params[4]), params[5]);
-
-      const ereply = new MessageEmbed()
-      .setColor(/* SOME COLOR */)
-      .setTitle(`Ambassador Registry`)
-      .setDescription(`Admin Panel - Regsitering New User`)
-      .setThumbnail(user_info.icon)
-      .addFields(
-        { name: 'Account Holder', value: `${user_info.Name}` },
-        { name: 'Account Number', value: `${user_info.ID}` },
-        { name: 'Class', value: `${user_info.Class}` },
-        { name: 'Total XP', value: `${user_info.TotalXP}`, inline: true },
-        { name: 'Available Gold', value: `${user_info.Gold}`, inline: true },
-      )
-      .setFooter({text: 'Task Successful.\nBank of Outreach brought to you by Ghassan Younes'});
-
-      fs.readFile(filedir, 'utf8', 
-        function readFileCallback(err, data) {
-          if (err) {
-              console.log('read error');
-              console.log(err);
-              msg.react('❌'); 
-          } else {
-            empty = JSON.parse(data); //now it an object
-            empty.users.push(user_info); //add some data
-            json = JSON.stringify(empty); //convert it back to json
-            fs.writeFile(filedir, json, 
-              function(err) {
-                if (err) {
-                  console.log('write error');
-                  console.log(err);
-                  msg.react('❌'); 
-                }
-                else {
-                  console.log(repl);
-                  msg.reply({ embeds: [ereply] });
-                  msg.react('✔️');
-                }
-              }
-            ); // write it back 
-          }
-        }
-      );
-    } else if (msg_lower.indexOf('%newamby') !== -1) {
-      msg.reply("That's not enough parameters! Please provide (comma-separated) the Ambassador Name, Class (Write N/A if unavailable), Discord User ID (You can @ their username for this too), Current Gold, Total XP, and a link to their photo!\nE.g. `Ghassan, Shawarma Sandwich, @explosivetortellini#6969, 69, 420, https://bit.ly/3tYOfzG`");
-      return;
-    } else if (msg_lower.indexOf('%addpoints ') !== -1) {
-      var user_data = msg_lower.replace('%addpoints ','');
-      if (user_data.endsWith(' '))
-        user_data = user_data.toString().slice(0,-1);
-      var filedir = './users/' + msg.guild.id.toString() + '/users.json';
-      var params = user_data.split(',');
-
-
-      if (params.length < 2) {
-        msg.reply("That's not enough parameters! Please provide (comma-separated) the Discord User ID (You can @ their username for this too) and the amount of points to add!\nE.g. `@explosivetortellini#6969,420`")
-        return;
-      }
-
-
-      if (params[0].startsWith('<@!') && params[0].endsWith('>')){
-        params[0] = params[0].replace('<@!','');
-        params[0] = params[0].replace('>','');
-      }
-      if (params[0].startsWith('<@') && params[0].endsWith('>')){
-        params[0] = params[0].replace('<@','');
-        params[0] = params[0].replace('>','');
-      }
-
-      let memberID = parseInt(params[0]);
-      let addPoints = parseInt(params[1]);
-      fs.readFile(filedir, 'utf8', function readFileCallback(err,data){
-        if (err) {
-            console.log('read error adding points');
-            console.log(err);
-            msg.react('❌'); 
-        } else {
-          empty = JSON.parse(data); //now it an object
-          user_info = empty.users.find(e => e.ID == memberID);
-          empty.users.find(e => e.ID == memberID).Gold += addPoints;
-          empty.users.find(e => e.ID == memberID).TotalXP += addPoints;
-          user_info = empty.users.find(e => e.ID == memberID);
-          json = JSON.stringify(empty); //convert it back to json
-          fs.writeFile(filedir, json, 
-            function(err) {
-              if (err) {
-                console.log('write error adding points');
-                console.log(err);
-                msg.react('❌'); 
-              }
-              else {
-                console.log(`Added ${params[1]} gold to ${user_info.Name}, id ${params[0]}`);
-                msg.reply(`New balance for ${user_info.Name} is ${user_info.Gold} out of ${user_info.TotalXP} total`);
-                msg.react('✔️');
-              }
-            }
-          ); // write it back 
-        }
-      }
-      );
-    } else if (msg_lower.indexOf('%subpoints ') !== -1) {
-      var user_data = msg_lower.replace('%subpoints ','');
-      if (user_data.endsWith(' '))
-        user_data = user_data.toString().slice(0,-1);
-      var filedir = './users/' + msg.guild.id.toString() + '/users.json';
-      var params = user_data.split(',');
-
-      if (params.length < 2) {
-        msg.reply("That's not enough parameters! Please provide (comma-separated) the Discord User ID (You can @ their username for this too) and the amount of points to withdraw!\nE.g. `@Punktu8#1958,11`")
-        return;
-      }
-
-      if (params[0].startsWith('<@!') && params[0].endsWith('>')){
-        params[0] = params[0].replace('<@!','');
-        params[0] = params[0].replace('>','');
-      }
-      if (params[0].startsWith('<@') && params[0].endsWith('>')){
-        params[0] = params[0].replace('<@','');
-        params[0] = params[0].replace('>','');
-      }
-
-      let memberID = parseInt(params[0]);
-      let subPoints = parseInt(params[1]);
-      fs.readFile(filedir, 'utf8', function readFileCallback(err,data){
-        if (err) {
-            console.log('read error subbing points');
-            console.log(err);
-            msg.react('❌'); 
-        } else {
-          empty = JSON.parse(data); //now it an object
-          user_info = empty.users.find(e => e.ID == memberID);
-          empty.users.find(e => e.ID == memberID).Gold -= subPoints;
-          user_info = empty.users.find(e => e.ID == memberID);
-          json = JSON.stringify(empty); //convert it back to json
-          fs.writeFile(filedir, json, 
-            function(err) {
-              if (err) {
-                console.log('write error subbing points');
-                console.log(err);
-                msg.react('❌'); 
-              }
-              else {
-                console.log(`Withdrew ${params[1]} gold from ${user_info.Name}, id ${params[0]} ; ${user_info.Gold}/${user_info.TotalXP}`);
-                msg.reply(`New balance for ${user_info.Name} is ${user_info.Gold} out of ${user_info.TotalXP} total`);
-                msg.react('✔️');
-              }
-            }
-          ); // write it back 
-        }
-      }
-      );
-    } else if (msg_lower.indexOf('%listall') !== -1) {
-      var filedir = './users/' + msg.guild.id.toString() + '/users.json';
-      fs.readFile(filedir, 'utf8', function readFileCallback(err,data){
-        if (err) {
-            console.log('read error');
-            console.log(err);
-            msg.react('❌'); 
-        } else {
-          empty = JSON.parse(data); 
-          var reply_message = "";
-          for (let i = 0; i < empty.users.length; i++) {
-            var temptext = parse_general(empty.users[i]);
-            console.log(temptext);
-            if (temptext)
-              reply_message += temptext;
-          }
-          console.log(reply_message);
-          msg.reply(reply_message);
-        }
-      }
-      );
-    } else if (msg_lower.indexOf('%lookup ') !== -1) {
-      var filedir = './users/' + msg.guild.id.toString() + '/users.json';
-      var params = msg_lower.split(' ');
-
-      if (params[1].startsWith('<@!') && params[1].endsWith('>')){
-        params[1] = params[1].replace('<@!','');
-        params[1] = params[1].replace('>','');
-      }
-      if (params[0].startsWith('<@') && params[1].endsWith('>')){
-        params[1] = params[1].replace('<@','');
-        params[1] = params[1].replace('>','');
-      }
-
-      let memberID = parseInt(params[1]);
-      var filedir = './users/' + msg.guild.id.toString() + '/users.json';
-      fs.readFile(filedir, 'utf8', function readFileCallback(err,data){
-        if (err) {
-            console.log('read error');
-            console.log(err);
-            msg.react('❌'); 
-        } else {
-          empty = JSON.parse(data); 
-          user_info = empty.users.find(e => e.ID == memberID);
-          msg.reply({embeds: [parse_lookup(user_info)]});
-        }
-      }
-      );
-    } else if (msg_lower.indexOf('%setname ') !== -1) {
-      var user_data = msg.content.replace('%setname ','');
-      var filedir = './users/' + msg.guild.id.toString() + '/users.json';
-      var params = user_data.split(',');
-
-      for (let i = 0; i < params.length; i++){
-        params[i] = params[i].replace(/^\s+/g, '');
-        params[i] = params[i].replace(/\s+$/g, '');
-      }
-  
-      if (params.length < 2) {
-        msg.reply("That's not enough parameters! Please provide (comma-separated) the Discord User ID (You can @ their username for this too) and the new name!\nE.g. `@explosivetortellini#6969,Ghassan Younes`")
-        return;
-      }
-  
-      if (params[0].startsWith('<@!') && params[0].endsWith('>')){
-        params[0] = params[0].replace('<@!','');
-        params[0] = params[0].replace('>','');
-      }
-      if (params[0].startsWith('<@') && params[0].endsWith('>')){
-        params[0] = params[0].replace('<@','');
-        params[0] = params[0].replace('>','');
-      }
-  
-      let memberID = parseInt(params[0]);
-      fs.readFile(filedir, 'utf8', function readFileCallback(err,data){
-        if (err) {
-            console.log('read error changing name');
-            console.log(err);
-            msg.react('❌'); 
-        } else {
-          empty = JSON.parse(data); //now it an object
-          user_info = empty.users.find(e => e.ID == memberID);
-          empty.users.find(e => e.ID == memberID).Name = params[1];
-          user_info = empty.users.find(e => e.ID == memberID);
-          json = JSON.stringify(empty); //convert it back to json
-          fs.writeFile(filedir, json, 
-            function(err) {
-              if (err) {
-                console.log('write error changing name');
-                console.log(err);
-                msg.react('❌'); 
-              }
-              else {
-                console.log(`Changed name for ${user_info.Name} to ${params[1]}, user id ${params[0]}`);
-                msg.react('✔️');
-              }
-            }
-          ); // write it back 
-        }
-      }
-      );
-    } 
   } else if (msg_lower.indexOf('%checkbalance') !== -1) {
     var filedir = './users/' + msg.guild.id.toString() + '/users.json';
     fs.readFile(filedir, 'utf8', function readFileCallback(err,data){
@@ -466,27 +191,20 @@ async function gotMessage(msg) {
     }
     );
   } else if (msg_lower.indexOf('%setphoto ') !== -1) {
-    var user_data = msg_lower.replace('%setphoto ','');
-    if (user_data.endsWith(' '))
-      user_data = user_data.toString().slice(0,-1);
     var filedir = './users/' + msg.guild.id.toString() + '/users.json';
-    var params = user_data.split(',');
+    var params = msg.content.split(' ');
 
     if (params.length < 2) {
-      msg.reply("That's not enough parameters! Please provide (comma-separated) the Discord User ID (You can @ their username for this too) and the new photo link!\nE.g. `@explosivetortellini#6969,https://bit.ly/3tYOfzG`")
+      msg.reply("That's not enough parameters! Please provide the new photo link!\nE.g. `https://bit.ly/3tYOfzG`")
       return;
     }
 
-    if (params[0].startsWith('<@!') && params[0].endsWith('>')){
-      params[0] = params[0].replace('<@!','');
-      params[0] = params[0].replace('>','');
-    }
-    if (params[0].startsWith('<@') && params[0].endsWith('>')){
-      params[0] = params[0].replace('<@','');
-      params[0] = params[0].replace('>','');
+    for (let i = 0; i < params.length; i++){
+      params[i] = params[i].replace(/^\s+/g, '');
+      params[i] = params[i].replace(/\s+$/g, '');
     }
 
-    let memberID = parseInt(params[0]);
+    let memberID = msg.member.id;
     fs.readFile(filedir, 'utf8', function readFileCallback(err,data){
       if (err) {
           console.log('read error changing photo');
@@ -495,7 +213,7 @@ async function gotMessage(msg) {
       } else {
         empty = JSON.parse(data); //now it an object
         user_info = empty.users.find(e => e.ID == memberID);
-        empty.users.find(e => e.ID == memberID).icon = params[1];
+        empty.users.find(e => e.ID == memberID).icon = params[2];
         user_info = empty.users.find(e => e.ID == memberID);
         json = JSON.stringify(empty); //convert it back to json
         fs.writeFile(filedir, json, 
@@ -506,7 +224,7 @@ async function gotMessage(msg) {
               msg.react('❌'); 
             }
             else {
-              console.log(`Changed photo for ${user_info.Name} to ${params[1]}, user id ${params[0]}`);
+              console.log(`Changed photo for ${user_info.Name} to ${params[1]}, user id ${memberID}`);
               msg.react('✔️');
             }
           }
@@ -517,7 +235,291 @@ async function gotMessage(msg) {
   } else if (msg_lower.indexOf('pull the lever kronk') !== -1) {
     msg.reply('http://25.media.tumblr.com/tumblr_lsxk1ndn7W1r2vs7so2_r1_250.gif');
     msg.channel.send('Why do we even have that lever?');
-  }  
+  } else if (config.setupChannels.includes(msg.channel.id.toString())) {
+    if (msg.member.roles.cache.some((role) => role.name.toLowerCase() === 'botmanager')) {
+      // THIS IS WHERE ALL THE ADMIN COMMANDS GO
+      if (msg_lower.indexOf('%newamby ') !== -1) {
+        var user_data = msg.content.replace('%newamby ','');
+        var filedir = './users/' + msg.guild.id.toString() + '/users.json';
+        var params = user_data.split(',');
+
+        for (let i = 0; i < params.length; i++){
+          params[i] = params[i].replace(/^\s+/g, '');
+          params[i] = params[i].replace(/\s+$/g, '');
+        }
+
+        if (params.length < 6) {
+          msg.reply("That's not enough parameters! Please provide (comma-separated) the Ambassador Name, Class (Write N/A if unavailable), Discord User ID (You can @ their username for this too), Current Gold, Total XP, and a link to their photo!\nE.g. `Ghassan, Shawarma Sandwich, @explosivetortellini#6969, 69, 420, https://bit.ly/3tYOfzG`");
+          return;
+        }
+
+        if (params[2].startsWith('<@!') && params[2].toString().endsWith('>')){
+          params[2] = params[2].replace('<@!','');
+          params[2] = params[2].replace('>','');
+        }
+        if (params[2].startsWith('<@') && params[2].toString().endsWith('>')){
+          params[2] = params[2].replace('<@','');
+          params[2] = params[2].replace('>','');
+        }
+
+        var repl = `New Ambassador: name: ${params[0]}, class: ${params[1]}, id: ${parseInt(params[2])}, gold: ${parseInt(params[3])}, xp: ${parseInt(params[4])}, icon: ${params[5]}`;
+        assign_amby(user_info, params[0], params[1], parseInt(params[2]), parseInt(params[3]), parseInt(params[4]), params[5]);
+
+        const ereply = new MessageEmbed()
+        .setColor(/* SOME COLOR */)
+        .setTitle(`Ambassador Registry`)
+        .setDescription(`Admin Panel - Regsitering New User`)
+        .setThumbnail(user_info.icon)
+        .addFields(
+          { name: 'Account Holder', value: `${user_info.Name}` },
+          { name: 'Account Number', value: `${user_info.ID}` },
+          { name: 'Class', value: `${user_info.Class}` },
+          { name: 'Total XP', value: `${user_info.TotalXP}`, inline: true },
+          { name: 'Available Gold', value: `${user_info.Gold}`, inline: true },
+        )
+        .setFooter({text: 'Task Successful.\nBank of Outreach brought to you by Ghassan Younes'});
+
+        fs.readFile(filedir, 'utf8', 
+          function readFileCallback(err, data) {
+            if (err) {
+                console.log('read error');
+                console.log(err);
+                msg.react('❌'); 
+            } else {
+              empty = JSON.parse(data); //now it an object
+              empty.users.push(user_info); //add some data
+              json = JSON.stringify(empty); //convert it back to json
+              fs.writeFile(filedir, json, 
+                function(err) {
+                  if (err) {
+                    console.log('write error');
+                    console.log(err);
+                    msg.react('❌'); 
+                  }
+                  else {
+                    console.log(repl);
+                    msg.reply({ embeds: [ereply] });
+                    msg.react('✔️');
+                  }
+                }
+              ); // write it back 
+            }
+          }
+        );
+      } else if (msg_lower.indexOf('%newamby') !== -1) {
+        msg.reply("That's not enough parameters! Please provide (comma-separated) the Ambassador Name, Class (Write N/A if unavailable), Discord User ID (You can @ their username for this too), Current Gold, Total XP, and a link to their photo!\nE.g. `Ghassan, Shawarma Sandwich, @explosivetortellini#6969, 69, 420, https://bit.ly/3tYOfzG`");
+        return;
+      } else if (msg_lower.indexOf('%addpoints ') !== -1) {
+        var user_data = msg_lower.replace('%addpoints ','');
+        if (user_data.endsWith(' '))
+          user_data = user_data.toString().slice(0,-1);
+        var filedir = './users/' + msg.guild.id.toString() + '/users.json';
+        var params = user_data.split(',');
+
+
+        if (params.length < 2) {
+          msg.reply("That's not enough parameters! Please provide (comma-separated) the Discord User ID (You can @ their username for this too) and the amount of points to add!\nE.g. `@explosivetortellini#6969,420`")
+          return;
+        }
+
+
+        if (params[0].startsWith('<@!') && params[0].endsWith('>')){
+          params[0] = params[0].replace('<@!','');
+          params[0] = params[0].replace('>','');
+        }
+        if (params[0].startsWith('<@') && params[0].endsWith('>')){
+          params[0] = params[0].replace('<@','');
+          params[0] = params[0].replace('>','');
+        }
+
+        let memberID = parseInt(params[0]);
+        let addPoints = parseInt(params[1]);
+        fs.readFile(filedir, 'utf8', function readFileCallback(err,data){
+          if (err) {
+              console.log('read error adding points');
+              console.log(err);
+              msg.react('❌'); 
+          } else {
+            empty = JSON.parse(data); //now it an object
+            user_info = empty.users.find(e => e.ID == memberID);
+            empty.users.find(e => e.ID == memberID).Gold += addPoints;
+            empty.users.find(e => e.ID == memberID).TotalXP += addPoints;
+            user_info = empty.users.find(e => e.ID == memberID);
+            json = JSON.stringify(empty); //convert it back to json
+            fs.writeFile(filedir, json, 
+              function(err) {
+                if (err) {
+                  console.log('write error adding points');
+                  console.log(err);
+                  msg.react('❌'); 
+                }
+                else {
+                  console.log(`Added ${params[1]} gold to ${user_info.Name}, id ${params[0]}`);
+                  msg.reply(`New balance for ${user_info.Name} is ${user_info.Gold} out of ${user_info.TotalXP} total`);
+                  msg.react('✔️');
+                }
+              }
+            ); // write it back 
+          }
+        }
+        );
+      } else if (msg_lower.indexOf('%subpoints ') !== -1) {
+        var user_data = msg_lower.replace('%subpoints ','');
+        if (user_data.endsWith(' '))
+          user_data = user_data.toString().slice(0,-1);
+        var filedir = './users/' + msg.guild.id.toString() + '/users.json';
+        var params = user_data.split(',');
+
+        if (params.length < 2) {
+          msg.reply("That's not enough parameters! Please provide (comma-separated) the Discord User ID (You can @ their username for this too) and the amount of points to withdraw!\nE.g. `@Punktu8#1958,11`")
+          return;
+        }
+
+        if (params[0].startsWith('<@!') && params[0].endsWith('>')){
+          params[0] = params[0].replace('<@!','');
+          params[0] = params[0].replace('>','');
+        }
+        if (params[0].startsWith('<@') && params[0].endsWith('>')){
+          params[0] = params[0].replace('<@','');
+          params[0] = params[0].replace('>','');
+        }
+
+        let memberID = parseInt(params[0]);
+        let subPoints = parseInt(params[1]);
+        fs.readFile(filedir, 'utf8', function readFileCallback(err,data){
+          if (err) {
+              console.log('read error subbing points');
+              console.log(err);
+              msg.react('❌'); 
+          } else {
+            empty = JSON.parse(data); //now it an object
+            user_info = empty.users.find(e => e.ID == memberID);
+            empty.users.find(e => e.ID == memberID).Gold -= subPoints;
+            user_info = empty.users.find(e => e.ID == memberID);
+            json = JSON.stringify(empty); //convert it back to json
+            fs.writeFile(filedir, json, 
+              function(err) {
+                if (err) {
+                  console.log('write error subbing points');
+                  console.log(err);
+                  msg.react('❌'); 
+                }
+                else {
+                  console.log(`Withdrew ${params[1]} gold from ${user_info.Name}, id ${params[0]} ; ${user_info.Gold}/${user_info.TotalXP}`);
+                  msg.reply(`New balance for ${user_info.Name} is ${user_info.Gold} out of ${user_info.TotalXP} total`);
+                  msg.react('✔️');
+                }
+              }
+            ); // write it back 
+          }
+        }
+        );
+      } else if (msg_lower.indexOf('%listall') !== -1) {
+        var filedir = './users/' + msg.guild.id.toString() + '/users.json';
+        fs.readFile(filedir, 'utf8', function readFileCallback(err,data){
+          if (err) {
+              console.log('read error');
+              console.log(err);
+              msg.react('❌'); 
+          } else {
+            empty = JSON.parse(data); 
+            var reply_message = "";
+            for (let i = 0; i < empty.users.length; i++) {
+              var temptext = parse_general(empty.users[i]);
+              console.log(temptext);
+              if (temptext)
+                reply_message += temptext;
+            }
+            console.log(reply_message);
+            msg.reply(reply_message);
+          }
+        }
+        );
+      } else if (msg_lower.indexOf('%lookup ') !== -1) {
+        var filedir = './users/' + msg.guild.id.toString() + '/users.json';
+        var params = msg_lower.split(' ');
+
+        if (params[1].startsWith('<@!') && params[1].endsWith('>')){
+          params[1] = params[1].replace('<@!','');
+          params[1] = params[1].replace('>','');
+        }
+        if (params[0].startsWith('<@') && params[1].endsWith('>')){
+          params[1] = params[1].replace('<@','');
+          params[1] = params[1].replace('>','');
+        }
+
+        let memberID = parseInt(params[1]);
+        var filedir = './users/' + msg.guild.id.toString() + '/users.json';
+        fs.readFile(filedir, 'utf8', function readFileCallback(err,data){
+          if (err) {
+              console.log('read error');
+              console.log(err);
+              msg.react('❌'); 
+          } else {
+            empty = JSON.parse(data); 
+            user_info = empty.users.find(e => e.ID == memberID);
+            msg.reply({embeds: [parse_lookup(user_info)]});
+          }
+        }
+        );
+      } else if (msg_lower.indexOf('%setname ') !== -1) {
+        var user_data = msg.content.replace('%setname ','');
+        var filedir = './users/' + msg.guild.id.toString() + '/users.json';
+        var params = user_data.split(',');
+
+        for (let i = 0; i < params.length; i++){
+          params[i] = params[i].replace(/^\s+/g, '');
+          params[i] = params[i].replace(/\s+$/g, '');
+        }
+    
+        if (params.length < 2) {
+          msg.reply("That's not enough parameters! Please provide (comma-separated) the Discord User ID (You can @ their username for this too) and the new name!\nE.g. `@explosivetortellini#6969,Ghassan Younes`")
+          return;
+        }
+    
+        if (params[0].startsWith('<@!') && params[0].endsWith('>')){
+          params[0] = params[0].replace('<@!','');
+          params[0] = params[0].replace('>','');
+        }
+        if (params[0].startsWith('<@') && params[0].endsWith('>')){
+          params[0] = params[0].replace('<@','');
+          params[0] = params[0].replace('>','');
+        }
+    
+        let memberID = parseInt(params[0]);
+        fs.readFile(filedir, 'utf8', function readFileCallback(err,data){
+          if (err) {
+              console.log('read error changing name');
+              console.log(err);
+              msg.react('❌'); 
+          } else {
+            empty = JSON.parse(data); //now it an object
+            user_info = empty.users.find(e => e.ID == memberID);
+            empty.users.find(e => e.ID == memberID).Name = params[1];
+            user_info = empty.users.find(e => e.ID == memberID);
+            json = JSON.stringify(empty); //convert it back to json
+            fs.writeFile(filedir, json, 
+              function(err) {
+                if (err) {
+                  console.log('write error changing name');
+                  console.log(err);
+                  msg.react('❌'); 
+                }
+                else {
+                  console.log(`Changed name for ${user_info.Name} to ${params[1]}, user id ${params[0]}`);
+                  msg.react('✔️');
+                }
+              }
+            ); // write it back 
+          }
+        }
+        );
+      } 
+    } else {
+      msg.react('❌'); 
+      msg.reply('Sorry, you do not have adequate permissions to issue that command.')
+    }
+  } 
 }
 
 async function newMember(member) {
