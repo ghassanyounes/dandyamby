@@ -21,6 +21,7 @@ var user_info= {
 var fs = require('fs');
 const util = require('util');
 const { MessageEmbed } = require('discord.js');
+const fetch = require('node-fetch');
 
 let date_ob = new Date();
 
@@ -99,6 +100,7 @@ async function gotMessage(msg) {
     .addFields(
       { name: 'Check your points balance', value: "`%checkbalance" },
       { name: 'Set your photo', value: "`%setphoto https://www.url/to/image.png`" },
+      { name: 'Set your class', value: "`%setclass Class`" },
       { name: 'See this menu', value: "`%help`" },
     )
     .setFooter({text: 'Task Successful.\nBank of Outreach brought to you by Ghassan Younes'})
@@ -216,7 +218,7 @@ async function gotMessage(msg) {
       } else {
         empty = JSON.parse(data); //now it an object
         user_info = empty.users.find(e => e.ID == memberID);
-        empty.users.find(e => e.ID == memberID).icon = params[2];
+        empty.users.find(e => e.ID == memberID).icon = params[1];
         user_info = empty.users.find(e => e.ID == memberID);
         json = JSON.stringify(empty); //convert it back to json
         fs.writeFile(filedir, json, 
@@ -235,9 +237,63 @@ async function gotMessage(msg) {
       }
     }
     );
+  } else if (msg_lower.indexOf('%setclass ') !== -1) {
+    var user_data = msg.content.replace('%setclass ','');
+    var filedir = './users/' + msg.guild.id.toString() + '/users.json';
+
+    user_data = user_data.replace(/^\s+/g, '');
+    user_data = user_data.replace(/\s+$/g, '');
+
+    let memberID = msg.member.id;
+    fs.readFile(filedir, 'utf8', function readFileCallback(err,data){
+      if (err) {
+          console.log('read error changing class');
+          console.log(err);
+          msg.react('❌'); 
+      } else {
+        empty = JSON.parse(data); //now it an object
+        empty.users.find(e => e.ID == memberID).Class = user_data;
+        user_info = empty.users.find(e => e.ID == memberID);
+        json = JSON.stringify(empty); //convert it back to json
+        fs.writeFile(filedir, json, 
+          function(err) {
+            if (err) {
+              console.log('write error changing class');
+              console.log(err);
+              msg.react('❌'); 
+            }
+            else {
+              console.log(`Changed class for ${user_info.Name} to ${user_data}, user id ${memberID}`);
+              msg.react('✔️');
+            }
+          }
+        ); // write it back 
+      }
+    }
+    );
   } else if (msg_lower.indexOf('pull the lever kronk') !== -1) {
     msg.reply('http://25.media.tumblr.com/tumblr_lsxk1ndn7W1r2vs7so2_r1_250.gif');
     msg.channel.send('Why do we even have that lever?');
+  } else if (msg_lower.indexOf('kermit') > -1) {
+    let tenor_url=`https://api.tenor.com/v1/search?q=kermit&key=${process.env.TENORKEY}&contentfilter=low`
+    let gif_reply = await fetch(tenor_url);
+    let gif_json = await gif_reply.json();
+    console.log(gif_json);
+
+    const index = Math.floor(Math.random() * gif_json.results.length);
+
+    msg.channel.send(gif_json.results[index].url);
+    //msg.channel.send(gif_json.results[0].url)
+  } else if (msg_lower.indexOf('kachow') > -1) {
+    let tenor_url=`https://api.tenor.com/v1/search?q=lightning-mcqueen&key=${process.env.TENORKEY}&contentfilter=low`
+    let gif_reply = await fetch(tenor_url);
+    let gif_json = await gif_reply.json();
+    console.log(gif_json);
+
+    const index = Math.floor(Math.random() * gif_json.results.length);
+
+    msg.channel.send(gif_json.results[index].url);
+    //msg.channel.send(gif_json.results[0].url)
   } else if (config.setupChannels.includes(msg.channel.id.toString())) {
     if (msg.member.roles.cache.some((role) => role.name.toLowerCase() === 'botmanager')) {
       // THIS IS WHERE ALL THE ADMIN COMMANDS GO
