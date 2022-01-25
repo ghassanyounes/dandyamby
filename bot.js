@@ -75,7 +75,7 @@ client.on('guildMemberAdd', newMember);
 
 process.on('uncaughtException', function (err) {
   console.log('Caught Exception: ' + err);
-});
+}); 
 
 async function gotMessage(msg) {
   if (msg.member.user.bot) {
@@ -106,6 +106,7 @@ async function gotMessage(msg) {
       ereply.addFields(
         { name: 'Admin Only: Set Admin Channel', value: "`%setupchannel #channel`" },
         { name: 'Admin Only: Add a New Ambassador', value: "`%newamby Name Lastname, Class, @discord_user, Gold, XP, https://www.url/to/image.png`" },
+        { name: 'Admin Only: Delete an Ambassador', value: "`%delamby @discord_user`" },
         { name: 'Admin Only: Add Points', value: "`%addpoints @discord_user,##` where ## is the number of points. This will automatically update total XP" },
         { name: 'Admin Only: Withdraw Points', value: "`%subpoints @discord_user,##` where ## is the number of points." },
         { name: 'Admin Only: List All Ambassadors', value: "`%listall`" },
@@ -183,10 +184,12 @@ async function gotMessage(msg) {
           msg.react('❌'); 
       } else {
         empty = JSON.parse(data); //now it an object
-        user_info = empty.users.find(e => e.ID == msg.member.id);
+        if (empty.users == undefined)
+          console.log(`read error checking balance for ${msg.member.id}\n` + JSON.stringify(empty));
+        user_info = empty.users.find((e) => e.ID == msg.member.id);
         //json = JSON.stringify(empty); //convert it back to json
         console.log(parse_general(user_info));
-        msg.reply({embeds: [parse_personal(user_info)]});
+        msg.reply({embeds: [parse_personal(user_info, msg.member.displayColor)]});
       }
     }
     );
@@ -268,7 +271,7 @@ async function gotMessage(msg) {
         const ereply = new MessageEmbed()
         .setColor(/* SOME COLOR */)
         .setTitle(`Ambassador Registry`)
-        .setDescription(`Admin Panel - Regsitering New User`)
+        .setDescription(`Admin Panel - Registering New User`)
         .setThumbnail(user_info.icon)
         .addFields(
           { name: 'Account Holder', value: `${user_info.Name}` },
@@ -458,20 +461,15 @@ async function gotMessage(msg) {
           } else {
             empty = JSON.parse(data); 
             user_info = empty.users.find(e => e.ID == memberID);
-            msg.reply({embeds: [parse_lookup(user_info)]});
+            msg.reply({embeds: [parse_lookup(user_info, msg.guild.members.cache.some((member) => member.id === user_info.ID).displayColor)]});
           }
         }
         );
       } else if (msg_lower.indexOf('%setname ') !== -1) {
         var user_data = msg.content.replace('%setname ','');
         var filedir = './users/' + msg.guild.id.toString() + '/users.json';
-        var params = user_data.split(',');
+        var params = user_data.split(' ');
 
-        for (let i = 0; i < params.length; i++){
-          params[i] = params[i].replace(/^\s+/g, '');
-          params[i] = params[i].replace(/\s+$/g, '');
-        }
-    
         if (params.length < 2) {
           msg.reply("That's not enough parameters! Please provide (comma-separated) the Discord User ID (You can @ their username for this too) and the new name!\nE.g. `@explosivetortellini#6969,Ghassan Younes`")
           return;
@@ -514,8 +512,49 @@ async function gotMessage(msg) {
           }
         }
         );
+      } else if (msg_lower.indexOf('%delamby ') !== -1) {
+        var user_data = msg.content.replace('%delamby ','');
+        var filedir = './users/' + msg.guild.id.toString() + '/users.json';
+    
+        if (user_data.startsWith('<@!') && user_data.endsWith('>')){
+          user_data = user_data.replace('<@!','');
+          user_data = user_data.replace('>','');
+        }
+        if (user_data.startsWith('<@') && user_data.endsWith('>')){
+          user_data = user_data.replace('<@','');
+          user_data = user_data.replace('>','');
+        }
+    
+        let memberID = parseInt(user_data);
+        fs.readFile(filedir, 'utf8', function readFileCallback(err,data){
+          if (err) {
+              console.log('read error deleting user ' + user_info.name);
+              console.log(err);
+              msg.react('❌'); 
+          } else {
+            empty = JSON.parse(data); //now it an object
+            user_info = empty.users.find(e => e.ID == memberID);
+            empty_users = empty.users.filter(e => e.ID != memberID);
+            json = JSON.stringify(empty_users); //convert it back to json
+            fs.writeFile(filedir, json, 
+              function(err) {
+                if (err) {
+                  console.log('write error deleting user ' + user_info.name);
+                  console.log(err);
+                  msg.react('❌'); 
+                }
+                else {
+                  console.log(`Deleted entry for ${user_info.Name}, user id ${user_data}. Last known information:`);
+                  console.log(parse_general(user_info));
+                  msg.react('✔️');
+                }
+              }
+            ); // write it back 
+          }
+        }
+        );
       } 
-    } else {
+    } else if (msg.content[0] === '%') {
       msg.react('❌'); 
       msg.reply('Sorry, you do not have adequate permissions to issue that command.')
     }
@@ -535,12 +574,12 @@ function assign_amby(amby, aname, clss, id, gold, xp, icon) {
   amby.icon = icon;
 }
 
-function parse_lookup(amby) {
+function parse_lookup(amby, color=222222) {
   if (typeof amby == 'undefined'){
     return new MessageEmbed() /* .setDescription('Fail') */;
   }
   const embed = new MessageEmbed()
-    .setColor(/* SOME COLOR */)
+    .setColor(`#${color.toString(16)}`)
     .setTitle(`Ambassador Registry`)
     .setDescription(`Admin Panel - User Lookup`)
     .setThumbnail(amby.icon)
@@ -556,12 +595,12 @@ function parse_lookup(amby) {
   return embed;
 }
 
-function parse_personal(amby) {
+function parse_personal(amby, color = 222222) {
   if (typeof amby == 'undefined'){
     return new MessageEmbed() /* .setDescription('Fail') */;
   }
   const embed = new MessageEmbed()
-    .setColor(/* SOME COLOR */)
+    .setColor(`#${color.toString(16)}`)
     .setTitle(`Bank of Outreach`)
     .setDescription(`Welcome friend, to the Bank of Outreach.`)
     .setThumbnail(amby.icon)
