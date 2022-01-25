@@ -1,0 +1,20 @@
+{
+  "users": [
+    {
+      "Name": "Hernando",
+      "Class": "afraid of nothing",
+      "ID": 122333,
+      "Gold": 2,
+      "TotalXP": 4,
+      "icon": "bbbbbb"
+    },
+    {
+      "Name": "Jorge",
+      "Class": "spackle",
+      "ID": 12345,
+      "Gold": 1,
+      "TotalXP": 3,
+      "icon": "eeeee"
+    }
+  ]
+}

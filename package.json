@@ -1,0 +1,26 @@
+{
+  "name": "dandyamby",
+  "version": "1.0.0",
+  "description": "A bot for Student Ambassadors!",
+  "main": "bot.js",
+  "scripts": {
+    "test": "node bot.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ghassanyounes/dandyamby.git"
+  },
+  "author": "Ghassan Younes",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ghassanyounes/dandyamby/issues"
+  },
+  "homepage": "https://github.com/ghassanyounes/dandyamby#readme",
+  "dependencies": {
+    "discord.js": "^13.6.0",
+    "dotenv": "^14.3.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.7.0"
+  }
+}
